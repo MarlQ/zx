@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unordered_set>
 
 namespace zx {
     class ZXDiagram {
@@ -42,6 +43,42 @@ namespace zx {
         [[nodiscard]] std::optional<Edge>      getEdge(Vertex from, Vertex to) const;
         [[nodiscard]] const std::vector<Edge>& incidentEdges(const Vertex v) const { return edges[v]; }
         [[nodiscard]] const Edge&              incidentEdge(const Vertex v, const std::size_t n) { return edges[v][n]; }
+
+
+
+        const std::vector<Vertex> getNeighbourVertices(const Vertex v) const { 
+            std::vector<Vertex> ret;
+            const auto& incident = edges[v];
+            for(auto const& e : incident) {
+                ret.emplace_back(e.to);
+            }
+            return ret;
+        }
+
+        [[nodiscard]] const std::optional<Vertex> insertIdentity(const Vertex v, const Vertex w) {
+            std::optional<Edge> edge = getEdge(v, w);
+            EdgeType orig_type = EdgeType::Simple;
+            if(edge) {
+                orig_type = edge->type;
+                removeEdge(v,w);
+            }
+            auto v_vertData = getVData(v);
+            if(v_vertData) {
+                Vertex vmid = addVertex(v_vertData->qubit, v_vertData->col - 1, PiExpression(), VertexType::Z);
+                addEdge(v, vmid, EdgeType::Hadamard);
+
+                if(orig_type == EdgeType::Hadamard) {
+                    addEdge(vmid, w, EdgeType::Simple);
+                }
+                else {
+                    addEdge(vmid, w, EdgeType::Hadamard);
+                }
+                return vmid;
+            }
+            
+            return {};
+        }
+
 
         [[nodiscard]] std::size_t degree(const Vertex v) const { return edges[v].size(); }
 
