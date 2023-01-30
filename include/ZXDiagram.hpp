@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 #include <unordered_set>
+#include <map>
 
 namespace zx {
     class ZXDiagram {
@@ -55,23 +56,29 @@ namespace zx {
             return ret;
         }
 
-        [[nodiscard]] const std::optional<Vertex> insertIdentity(const Vertex v, const Vertex w) {
+        [[nodiscard]] const std::optional<Vertex> insertIdentity(const Vertex v, const zx::Qubit v_qubit, const Vertex w) {
             std::optional<Edge> edge = getEdge(v, w);
             EdgeType orig_type = EdgeType::Simple;
             if(edge) {
                 orig_type = edge->type;
                 removeEdge(v,w);
+                //std::cout << "Removed edge (" << v << ", " << w << ")" << std::endl;
             }
             auto v_vertData = getVData(v);
             if(v_vertData) {
-                Vertex vmid = addVertex(v_vertData->qubit, v_vertData->col - 1, PiExpression(), VertexType::Z);
+                Vertex vmid = addVertex(v_qubit, v_vertData->col - 1, PiExpression(), VertexType::Z);
+                //std::cout << "Added vertex " << vmid << " with qubit " << v_qubit  << std::endl;
+                
                 addEdge(v, vmid, EdgeType::Hadamard);
+                //std::cout << "Added edge (" << v << ", " << vmid << ")" << std::endl;
 
                 if(orig_type == EdgeType::Hadamard) {
                     addEdge(vmid, w, EdgeType::Simple);
+                    //std::cout << "Added edge (" << vmid << ", " << w << ")" << std::endl;
                 }
                 else {
                     addEdge(vmid, w, EdgeType::Hadamard);
+                    //std::cout << "Added edge (" << vmid << ", " << w << ")" << std::endl;
                 }
                 return vmid;
             }
@@ -135,6 +142,16 @@ namespace zx {
             vertices[v].value().type = type;
         }
 
+        void setEdgeType(const Vertex from, const Vertex to, const EdgeType type) {
+            std::optional<Edge> e = getEdge(from, to);
+            if(e) {
+                e->type = type;
+                    // toggle corresponding edge in other direction
+                getEdgePtr(e->to, from)->type = type;
+            }
+            
+        }
+
         void toGraphlike();
 
         [[nodiscard]] bool isIdentity() const;
@@ -162,7 +179,9 @@ namespace zx {
         }
         gf2Mat              getAdjMat() const;
         std::vector<Vertex> getConnectedSet(const std::vector<Vertex>& s, const std::vector<Vertex>& exclude = {}) const;
+        std::vector<Vertex> getConnectedSet(const std::map<Qubit, zx::Vertex>& s, const std::vector<Vertex>& exclude = {}) const;
         static bool         isIn(const Vertex& v, const std::vector<Vertex>& vertices);
+        void toJSON(std::string filename, bool include_scalar=true);
 
     private:
         std::vector<std::vector<Edge>>         edges;

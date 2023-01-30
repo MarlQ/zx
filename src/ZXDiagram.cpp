@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <unordered_map>
 #include <unordered_set>
+#include <map>
+#include <fstream>
 
 namespace zx {
 
@@ -280,7 +282,7 @@ namespace zx {
                 return false;
             }
         }
-        return true;
+        return true; 
     }
 
     std::vector<Vertex> ZXDiagram::initGraph(const std::size_t nqubits) {
@@ -402,7 +404,159 @@ namespace zx {
         return connected;
     }
 
+    std::vector<Vertex> ZXDiagram::getConnectedSet(const std::map<Qubit, zx::Vertex>& s, const std::vector<Vertex>& exclude) const {
+        std::vector<Vertex> connected;
+        for (const auto &v: s) {
+            for (const auto& [to, _]: edges[v.second]) {
+                if (isIn(to, exclude))
+                    continue;
+
+                const auto& p = std::lower_bound(connected.begin(), connected.end(), to);
+                if (p == connected.end()) {
+                    connected.emplace_back(to);
+                    continue;
+                }
+                if (*p != to) {
+                    connected.insert(p, to);
+                }
+            }
+        }
+        return connected;
+    }
+
+
     bool ZXDiagram::isIn(const Vertex& v, const std::vector<Vertex>& vertices) {
         return std::find(vertices.begin(), vertices.end(), v) != vertices.end();
     }
+
+    std::string phase_to_quanto_value(PiExpression p) {
+        if(p.isZero()) return "";
+        auto frac = p.getConst();
+        std::string v;
+
+        if(frac.getNum() == -1) v = "-";
+        else if(frac.getNum() == 1) v = "";
+        else v = frac.getNum().str();
+
+        std::string d = frac.getDenom() != 1 ? "/" + frac.getDenom().str() : "";
+        return v + "\\\\pi" + d;
+    }
+
+    void ZXDiagram::toJSON(std::string filename, bool include_scalar) {
+        std::string wire_vs;
+        std::string node_vs;
+        std::string edges_str;
+
+        std::unordered_map<Vertex, std::string> names;
+
+        /* std::vector<std::string> freenamesv;
+        for (int i = 0; i < getNVertices() + getNEdges(); ++i) {
+            freenamesv.push_back("v" + std::to_string(i));
+        } */
+        int vertexCounter = 0;
+        int boundaryCounter = 0;
+
+        /* std::vector<std::string> freenamesb;
+        for (int i = 0; i < getNVertices(); ++i) {
+            freenamesb.push_back("b" + std::to_string(i));
+        }
+ */
+        for(auto vert : getVertices()) {
+            auto v = vert.first;
+            VertexData vertexData = vert.second;
+
+            std::pair<double, double> coord = {(double) vertexData.col, (double) -vertexData.qubit}; // FIXME: The original code rounds these to 3 decimal places. What is the point??
+
+            std::string name;
+
+            if(vertexData.type == VertexType::Boundary) {
+                name = "b" + std::to_string(boundaryCounter);
+                boundaryCounter++;
+            }
+            else {
+                name = "v" + std::to_string(vertexCounter);
+                vertexCounter++;
+            }
+            names[v] = name;
+
+            if(vertexData.type == VertexType::Boundary) {
+
+                std::string is_input = isInput(v) ? "true" : "false";
+                std::string is_output = isOutput(v) ? "true" : "false";
+
+                std::stringstream strm;
+                if(boundaryCounter > 1) strm << ", ";
+                strm << "\"" << name << "\": {\"annotation\": {\"boundary\": true, \"coord\": [" << coord.first << ", " << coord.second << "], \"input\": " << is_input << ", \"output\": " << is_output << "}}";
+                wire_vs += strm.str();
+            }
+            else {
+
+                std::string str_type = "\"type\": \"Z\"";
+                if(vertexData.type == VertexType::X) str_type = "\"type\": \"X\"";
+
+                std::string str_value = "";
+                if(!vertexData.phase.isZero()) {
+                    str_value = ", \"value\": \"" + phase_to_quanto_value(vertexData.phase) + "\"";
+                }
+               
+
+                std::stringstream strm;
+                if(vertexCounter > 1) strm << ", ";
+                strm << "\"" << name << "\": {\"annotation\": {\"coord\": [" << coord.first << ", " << coord.second << "]}, \"data\": {" << str_type << str_value << "}}";
+                node_vs += strm.str();
+            }
+        }
+
+        int i = 0;
+        for(auto e : getEdges()) {
+            auto edge = getEdge(e.first, e.second);
+            if(edge->type == EdgeType::Simple) {
+                std::stringstream strm;
+                if(i > 0) strm << ", ";
+                strm << "\"e" << i << "\": {\"src\": \"" << names[e.first] << "\", \"tgt\": \"" << names[e.second] << "\"}";
+                edges_str += strm.str();
+                i++;
+            } 
+            else {
+                auto v1 = getVData(e.first);
+                auto v2 = getVData(e.second);
+                double x1 = v1->col;
+                double y1 = - v1->qubit;
+                double x2 = v2->col;
+                double y2 = - v2->qubit;
+                std::pair<double, double> coord = {(double) std::round( (x1+x2)/2.0 * 1000.0 ) / 1000.0 , (double) std::round( (y1+y2)/2.0 * 1000.0 ) / 1000.0 };
+
+                std::string hadname = "v" + std::to_string(vertexCounter);
+                vertexCounter++;
+
+                std::stringstream strm;
+                if(vertexCounter > 1) strm << ", ";
+                strm << "\"" << hadname << "\": {\"annotation\": {\"coord\": [" << coord.first << ", " << coord.second << "]}, \"data\": {\"type\": \"hadamard\", \"is_edge\": \"true\"}}";
+                node_vs += strm.str();
+
+                std::stringstream strm2;
+                if(i > 0) strm2 << ", ";
+                strm2 << "\"e" << i << "\": {\"src\": \"" << names[e.first] << "\", \"tgt\": \"" << hadname << "\"}";
+                edges_str += strm2.str();
+                i++;
+
+                std::stringstream strm3;
+                strm3 << ", \"e" << i << "\": {\"src\": \"" << names[e.second] << "\", \"tgt\": \"" << hadname << "\"}";
+                edges_str += strm3.str();
+                i++;
+            }
+        }
+        std::ofstream file(filename);
+
+        file << "{\"wire_vertices\": {" << wire_vs << "}, \"node_vertices\": {" << node_vs << "}, \"undir_edges\": {" << edges_str << "}";
+        if(include_scalar) { // TODO:
+            //auto phase = getGlobalPhase();
+            //file << ", \\\"scalar\\\": \\\"{\\\\\\\"power2\\\\\\\": " << power2 << ", \\\\\\\"phase\\\\\\\": \\\\\\\"" << phase << "\\\\\\\"}";
+        }
+        file << "}";
+
+        file.close();
+
+    }
+
 } // namespace zx
