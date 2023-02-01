@@ -49,7 +49,7 @@ namespace zx {
 
         const std::vector<Vertex> getNeighbourVertices(const Vertex v) const { 
             std::vector<Vertex> ret;
-            const auto& incident = edges[v];
+            const auto& incident = incidentEdges(v);
             for(auto const& e : incident) {
                 ret.emplace_back(e.to);
             }
@@ -143,12 +143,11 @@ namespace zx {
         }
 
         void setEdgeType(const Vertex from, const Vertex to, const EdgeType type) {
-            std::optional<Edge> e = getEdge(from, to);
-            if(e) {
-                e->type = type;
-                    // toggle corresponding edge in other direction
-                getEdgePtr(e->to, from)->type = type;
-            }
+            auto e = getEdgePtr(from, to);
+            e->type = type;
+                // toggle corresponding edge in other direction
+            getEdgePtr(to, from)->type = type;
+            
             
         }
 
