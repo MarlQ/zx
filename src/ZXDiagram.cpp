@@ -442,7 +442,7 @@ namespace zx {
         return v + "\\\\pi" + d;
     }
 
-    void ZXDiagram::toJSON(std::string filename, bool include_scalar) {
+    void ZXDiagram::toJSON(std::string filename, const std::vector<Vertex>& markedVertices, bool include_scalar) {
         std::string wire_vs;
         std::string node_vs;
         std::string edges_str;
@@ -461,11 +461,19 @@ namespace zx {
             freenamesb.push_back("b" + std::to_string(i));
         }
  */
+        float vertexDist = 1.0;
+        zx::Col highestCol = 0;
+        for(auto vert : getVertices()) {
+            VertexData vertexData = vert.second;
+            if(vertexData.col > highestCol) highestCol = vertexData.col;
+        }
+
+
         for(auto vert : getVertices()) {
             auto v = vert.first;
             VertexData vertexData = vert.second;
 
-            std::pair<double, double> coord = {(double) vertexData.col, (double) -vertexData.qubit}; // FIXME: The original code rounds these to 3 decimal places. What is the point??
+            std::pair<double, double> coord = {(double) vertexData.col * vertexDist, (double) -vertexData.qubit}; // FIXME: The original code rounds these to 3 decimal places. What is the point??
 
             std::string name;
 
@@ -478,11 +486,14 @@ namespace zx {
                 vertexCounter++;
             }
             names[v] = name;
-
+            float outputOffset = highestCol * vertexDist + vertexDist;
+            
             if(vertexData.type == VertexType::Boundary) {
 
                 std::string is_input = isInput(v) ? "true" : "false";
                 std::string is_output = isOutput(v) ? "true" : "false";
+                if(isOutput(v)) coord.first = outputOffset;
+                
 
                 std::stringstream strm;
                 if(boundaryCounter > 1) strm << ", ";
@@ -493,6 +504,10 @@ namespace zx {
 
                 std::string str_type = "\"type\": \"Z\"";
                 if(vertexData.type == VertexType::X) str_type = "\"type\": \"X\"";
+                if(isIn(v, markedVertices)) {
+                    str_type = "\"type\": \"X\"";
+                    coord.first = outputOffset - vertexDist;
+                }
 
                 std::string str_value = "";
                 if(!vertexData.phase.isZero()) {
@@ -520,9 +535,9 @@ namespace zx {
             else {
                 auto v1 = getVData(e.first);
                 auto v2 = getVData(e.second);
-                double x1 = v1->col;
+                double x1 = v1->col * vertexDist;
                 double y1 = - v1->qubit;
-                double x2 = v2->col;
+                double x2 = v2->col * vertexDist;
                 double y2 = - v2->qubit;
                 std::pair<double, double> coord = {(double) std::round( (x1+x2)/2.0 * 1000.0 ) / 1000.0 , (double) std::round( (y1+y2)/2.0 * 1000.0 ) / 1000.0 };
 
