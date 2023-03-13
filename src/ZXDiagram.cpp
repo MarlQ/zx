@@ -504,10 +504,13 @@ namespace zx {
 
                 std::string str_type = "\"type\": \"Z\"";
                 if(vertexData.type == VertexType::X) str_type = "\"type\": \"X\"";
-                if(isIn(v, markedVertices)) {
-                    str_type = "\"type\": \"X\"";
-                    coord.first = outputOffset - vertexDist;
+                if(!markedVertices.empty()) {
+                    if(isIn(v, markedVertices)) {
+                        str_type = "\"type\": \"X\"";
+                        coord.first = outputOffset - vertexDist;
+                    }
                 }
+                
 
                 std::string str_value = "";
                 if(!vertexData.phase.isZero()) {

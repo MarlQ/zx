@@ -47,7 +47,7 @@ namespace zx {
 
 
 
-        const std::vector<Vertex> getNeighbourVertices(const Vertex v) const { 
+        const std::vector<Vertex> getNeighborVertices(const Vertex v) const { 
             std::vector<Vertex> ret;
             const auto& incident = incidentEdges(v);
             for(auto const& e : incident) {
@@ -180,7 +180,7 @@ namespace zx {
         std::vector<Vertex> getConnectedSet(const std::vector<Vertex>& s, const std::vector<Vertex>& exclude = {}) const;
         std::vector<Vertex> getConnectedSet(const std::map<Qubit, zx::Vertex>& s, const std::vector<Vertex>& exclude = {}) const;
         static bool         isIn(const Vertex& v, const std::vector<Vertex>& vertices);
-        void toJSON(std::string filename, const std::vector<Vertex>& markedVertices, bool include_scalar=true);
+        void toJSON(std::string filename, const std::vector<Vertex>& markedVertices={}, bool include_scalar=true);
 
     private:
         std::vector<std::vector<Edge>>         edges;
