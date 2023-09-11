@@ -155,6 +155,7 @@ namespace zx {
 
         [[nodiscard]] bool isIdentity() const;
 
+        [[nodiscard]] ZXDiagram reverse() const;
         [[nodiscard]] ZXDiagram adjoint() const;
 
         ZXDiagram& invert();
@@ -181,6 +182,10 @@ namespace zx {
         std::vector<Vertex> getConnectedSet(const std::map<Qubit, zx::Vertex>& s, const std::vector<Vertex>& exclude = {}) const;
         static bool         isIn(const Vertex& v, const std::vector<Vertex>& vertices);
         void toJSON(std::string filename, const std::vector<Vertex>& markedVertices={}, bool include_scalar=true);
+
+        void setInputs(std::vector<Vertex>  newInputs) {
+            inputs = newInputs;
+        }
 
     private:
         std::vector<std::vector<Edge>>         edges;
