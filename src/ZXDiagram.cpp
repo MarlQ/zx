@@ -538,14 +538,14 @@ namespace zx {
             auto edge = getEdge(e.first, e.second);
             if(edge->type == EdgeType::Simple) {
                 std::stringstream strm;
-                if(names[e.first] == "" || names[e.second] == "") continue;
+                //if(names[e.first] == "" || names[e.second] == "") continue;
                 if(i > 0) strm << ", ";
                 strm << "\"e" << i << "\": {\"src\": \"" << names[e.first] << "\", \"tgt\": \"" << names[e.second] << "\"}";
                 edges_str += strm.str();
                 i++;
             } 
             else {
-                if(names[e.first] == "" || names[e.second] == "") continue;
+                //if(names[e.first] == "" || names[e.second] == "") continue;
                 auto v1 = getVData(e.first);
                 auto v2 = getVData(e.second);
                 double x1 = v1->col * vertexDist;
